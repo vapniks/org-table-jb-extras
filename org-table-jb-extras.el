@@ -196,18 +196,19 @@ previous vertical lines will be deleted."
   (let ((col (current-column))
 	(start (point)))
     (cl-flet ((vlineend (start col fwd)
-			(save-excursion
-			  (while (and (eq (current-column) col)
-				      (or (eq (char-after) 124)
-					  (eq (char-after) 43)))
-			    (forward-line (if fwd 1 -1))
-			    (forward-char-same-line (- col (current-column))))
-			  (unless (eq (point) start)
-			    (forward-line (if fwd -1 1))
-			    (forward-char-same-line (- col (current-column)))
-			    (if fwd (1+ (point)) (point))))))
+		(save-excursion
+		  (while (and (eq (current-column) col)
+			      (or (eq (char-after) 124)
+				  (eq (char-after) 43)))
+		    (forward-line (if fwd 1 -1))
+		    (forward-char-same-line (- col (current-column))))
+		  (unless (eq (point) start)
+		    (forward-line (if fwd -1 1))
+		    (forward-char-same-line (- col (current-column)))
+		    (if fwd (1+ (point)) (point))))))
       (delete-extract-rectangle (vlineend start col nil) (vlineend start col t)))))
 
+;;;###autoload
 ;; simple-call-tree-info: DONE
 (defcustom org-table-flatten-functions
   '(("append" . (lambda (sep lst)
@@ -1195,6 +1196,7 @@ The name of a table is determined by a #+NAME or #+TBLNAME line before the table
 To count the number of rows including hlines use `length'."
   (length (remove 'hline tbl)))
 
+;;;###autoload
 ;; simple-call-tree-info: CHECK
 (defun org-table-query-dimension (&optional where)
   "Print and return the number of columns, data lines, cells, hlines, height & width (in chars) of org-table at point.
@@ -1415,7 +1417,7 @@ The inherited property should be in the same form as a parameter list for the co
 
 ;;;###autoload
 ;; simple-call-tree-info: DONE  
-(defun org-dblock-write:tablefilter (params)
+(defun org-dblock-write:tablefilter (params &optional noinsert)
   "Org dynamic block function to filter lines/columns of org tables.
 
 The plist may contain the following parameters:
@@ -1478,16 +1480,18 @@ that rows in which c3 is empty dont cause an error):
       (tblnames tblname namescol noerrors noerror cols rows filter)
       (mapcar (apply-partially 'plist-get (org-table-inherit-params params))
               '(:tblnames :tblname :namescol :noerrors :noerror :cols :rows :filter))
-    (setq tblnames (or tblnames tblname) noerrors (or noerrors noerror))
-    (org-table-insert
-     ;; Note: for some reason this doesn't work if `flet' is replaced by `cl-flet'
-     (eval `(flet ,(mapcar 'car org-table-filter-function-bindings)
-	      (org-table-filter-list (if (listp tblnames) (org-table-rbind-named tblnames namescol "")
-				       (org-table-fetch tblnames t))
-				     cols rows (if noerrors
-						   `(condition-case nil ,filter (error nil))
-						 filter)))))))
+    (setq tblnames (or tblnames tblname) noerrors (or noerrors noerror)
+	  ;; Note: for some reason this doesn't work if `flet' is replaced by `cl-flet'
+	  lsts (eval `(flet ,(mapcar 'car org-table-filter-function-bindings)
+			(org-table-filter-list (if (listp tblnames) (org-table-rbind-named tblnames namescol "")
+						 (org-table-fetch tblnames t))
+					       cols rows (if noerrors
+							     `(condition-case nil ,filter (error nil))
+							   filter)))))
+    (if noinsert lsts
+      (org-table-insert lsts))))
 
+;;;###autoload
 ;; simple-call-tree-info: DONE
 (defun org-table-move-cell nil
   "Prompt for a direction and move the current cell in that direction.
@@ -1675,6 +1679,7 @@ The SEXP may make use of functions defined in `org-table-filter-function-binding
 		name)))
     (substring str 0 (min maxchars (length str)))))
 
+;;;###autoload
 ;; simple-call-tree-info: DONE
 (defun org-table-show-jump-condition nil
   "Display a message in the minibuffer showing the current jump condition."
@@ -1682,6 +1687,7 @@ The SEXP may make use of functions defined in `org-table-filter-function-binding
   (let ((msg "org-table-jump set to direction = %s, condition = %s"))
     (message msg (car org-table-jump-condition) (cdr org-table-jump-condition))))
 
+;;;###autoload
 ;; simple-call-tree-info: TODO make selection using one-key or make-help-screen instead of completing-read?
 (defun org-table-set-jump-condition (condition)
   "Set the CONDITION for `org-table-jump-condition'.
@@ -1754,6 +1760,7 @@ The jump condition must take one of the following forms:\n\n"))
 		       (cdr (assoc condition org-table-jump-condition-presets)))
 		  condition))))
 
+;;;###autoload
 ;; simple-call-tree-info: CHECK
 (defun org-table-set-jump-direction (direction)
   "Set the DIRECTION for `org-table-jump-condition'; 'up, 'down, 'left or 'right.
@@ -1767,6 +1774,7 @@ When called interactively prompt the user to press a key for the DIRECTION."
 			 (t key)))))
   (setcar org-table-jump-condition direction))
 
+;;;###autoload
 ;; simple-call-tree-info: CHECK
 (defun org-table-write-jump-condition (&optional direction condition)
   "Write the current jump DIRECTION & CONDITION after #+TBLJMP under the org-table at point.
@@ -2060,6 +2068,7 @@ Depends upon dynamically bound variables; steps, matchcount, startline, startcol
      `(gotocell ,(car jmpcnd) ,col))
     (_ jmpcnd)))
 
+;;;###autoload
 ;; simple-call-tree-info: DONE
 (defun org-table-jump-next (steps &optional stopcond movedir)
   "Jump to the STEPS next field in the org-table at point matching `org-table-jump-condition'.
@@ -2136,6 +2145,7 @@ In both these cases STEPS is set to 1."
     (org-table-goto-column currentcol)
     (cons currentline currentcol)))
 
+;;;###autoload
 ;; simple-call-tree-info: DONE  
 (defun org-table-jump-prev (steps &optional stopcond movedir)
   "Like `org-table-jump-next' but jump STEPS in opposite direction.
@@ -2143,6 +2153,7 @@ STOPCOND & MOVEDIR args are same as for `org-table-jump-next'."
   (interactive "p")
   (org-table-jump-next (- steps) stopcond movedir))
 
+;;;###autoload
 ;; simple-call-tree-info: CHECK
 (defun org-table-browse-tables (&optional namedp)
   "Browse tables in the current buffer using `occur'.
